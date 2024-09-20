@@ -57,15 +57,24 @@ static const char *TAG = "example";
  *    (makes sense since the tic interval is 10 mS)
  * 
  * Exp #3: Interrupt driven ... can interrupt IDLE()?
+ * a) Start with a 1 KHz and look for the "Doing Nothing":
+ * b) 10 KHz and look for the "Doing Nothing" and resets:
+ * c) 100 KHz ... same:
+ * d) reduce to see where it can keep up
+ * e) add back the Neopixel task
+ * 
  */
-#define SQUAREWAVE_TIC    1
-#define SQUAREWAVE_BASIC  2
-#define SQUAREWAVE_INTR   3
+#define SQUAREWAVE_TIC    1   // tic timer based
+#define SQUAREWAVE_BASIC  2   // bit banging
+#define SQUAREWAVE_INTR   3   // general timer interrupt based
 
 #define SQUAREWAVE_METHOD SQUAREWAVE_INTR
-//#define WD_DELAY
+//#define WD_DELAY // release processor per cycle
 
-
+/*
+ * generate a square wave using different methods
+ * this function doesn't escape once called
+ */
 static void square_wave(void)
 {
     int64_t cur_us = 0;
@@ -127,6 +136,7 @@ static void square_wave(void)
 
 /*
  * square wave using an interrupt
+ * this is the ISR for timer interrupt based version
  */
 void square_wave_proc(void)
 {
@@ -134,6 +144,13 @@ void square_wave_proc(void)
 
     gpio_set_level(GPIO_OUTPUT_IO_0, (cur_level = !cur_level));
 }
+
+/*
+ * initialize a timer and call register it's ISR 
+ * based on reaching a specified count
+ */
+#define INTR_SQWAVE_FREQ   1000000  // timer frequency
+#define INTR_SQWAVE_COUNT  50       // count/freq = period/2
 static void square_wave_timer_init(void)
 {
     ESP_LOGI(TAG, "Create timer handle");
@@ -141,7 +158,7 @@ static void square_wave_timer_init(void)
     gptimer_config_t timer_config = {
         .clk_src = GPTIMER_CLK_SRC_DEFAULT,
         .direction = GPTIMER_COUNT_UP,
-        .resolution_hz = 1000000, // 1MHz, 1 tick=1us
+        .resolution_hz = INTR_SQWAVE_FREQ, // 1MHz, 1 tick=1us
     };
     ESP_ERROR_CHECK(gptimer_new_timer(&timer_config, &gptimer));
 
@@ -156,7 +173,7 @@ static void square_wave_timer_init(void)
     ESP_LOGI(TAG, "Start timer, stop it at alarm event");
     gptimer_alarm_config_t alarm_config1 = {
         .reload_count = 0,
-        .alarm_count = 50, // period = 100 uS
+        .alarm_count = INTR_SQWAVE_COUNT, // period
         .flags.auto_reload_on_alarm = true,
     };
     ESP_ERROR_CHECK(gptimer_set_alarm_action(gptimer, &alarm_config1));
