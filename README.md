@@ -1,0 +1,3 @@
+These are semmingly random experiments and prototypes that I don't want to lose.
+These are not guaranteed to work or perform any useful function ... 
+most useful for patterns and syntax.
